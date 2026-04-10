@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SkyScope — Clima en Tiempo Real</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* =========================================================
+       CSS Variables — Paleta temática de clima/cielo
+       ========================================================= */
+    :root {
+      --sky-deep:     #0a1628;
+      --sky-midnight: #0f2347;
+      --sky-dusk:     #1a3a6b;
+      --sky-blue:     #2563eb;
+      --sky-light:    #60a5fa;
+      --sky-pale:     #bfdbfe;
+      --cloud-white:  #f0f7ff;
+      --sun-gold:     #fbbf24;
+      --sun-warm:     #f59e0b;
+      --storm-grey:   #64748b;
+      --rain-teal:    #0891b2;
+      --snow-white:   #e0f2fe;
+      --text-primary: #f0f7ff;
+      --text-muted:   #93c5fd;
+      --glass-bg:     rgba(255,255,255,0.07);
+      --glass-border: rgba(255,255,255,0.13);
+      --card-shadow:  0 8px 40px rgba(0,0,0,0.35);
+      --radius:       20px;
+    }
+
+    /* =========================================================
+       Reset & Base
+       ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--sky-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* =========================================================
+       Fondo dinámico con gradiente y estrellas
+       ========================================================= */
+    .sky-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(ellipse at 20% 0%, #1a3a6b 0%, #0a1628 60%),
+                  radial-gradient(ellipse at 80% 100%, #0f2347 0%, transparent 60%);
+      overflow: hidden;
+    }
+
+    .sky-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(1.5px 1.5px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 40%, rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(2px 2px at 60% 10%, rgba(255,255,255,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 80% 30%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 50% 60%, rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 80%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(2px 2px at 5% 70%, rgba(255,255,255,0.5) 0%, transparent 100%);
+      animation: twinkle 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes twinkle {
+      from { opacity: 0.7; }
+      to   { opacity: 1; }
+    }
+
+    /* Nubes flotantes decorativas */
+    .cloud {
+      position: absolute;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50px;
+      filter: blur(30px);
+    }
+    .cloud-1 { width: 400px; height: 120px; top: 10%; left: -5%; animation: drift 25s linear infinite; }
+    .cloud-2 { width: 280px; height: 80px;  top: 35%; right: -3%; animation: drift 35s linear infinite reverse; }
+    .cloud-3 { width: 350px; height: 100px; bottom: 20%; left: 20%; animation: drift 30s linear infinite; }
+
+    @keyframes drift {
+      from { transform: translateX(0); }
+      to   { transform: translateX(60px); }
+    }
+
+    /* =========================================================
+       Layout principal
+       ========================================================= */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    /* =========================================================
+       Header / Logo
+       ========================================================= */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      animation: fadeDown 0.7s ease both;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, var(--cloud-white) 40%, var(--sky-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo span {
+      font-style: italic;
+      background: linear-gradient(135deg, var(--sun-gold) 0%, var(--sun-warm) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 300;
+      margin-top: 6px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* =========================================================
+       Barra de búsqueda
+       ========================================================= */
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 36px;
+      animation: fadeDown 0.8s 0.1s ease both;
+    }
+
+    .search-input {
+      flex: 1;
+      background: var(--glass-bg);
+      border: 1.5px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 22px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      color: var(--text-primary);
+      outline: none;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .search-input::placeholder { color: var(--storm-grey); }
+
+    .search-input:focus {
+      border-color: var(--sky-light);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.2);
+    }
+
+    .btn {
+      padding: 16px 28px;
+      border-radius: 14px;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--sky-blue), var(--sky-light));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.45);
+    }
+
+    .btn-primary:hover { box-shadow: 0 6px 28px rgba(37,99,235,0.6); transform: translateY(-1px); }
+
+    .btn-location {
+      background: var(--glass-bg);
+      border: 1.5px solid var(--glass-border);
+      color: var(--text-muted);
+      backdrop-filter: blur(12px);
+      padding: 16px 18px;
+      font-size: 1.2rem;
+    }
+
+    .btn-location:hover { border-color: var(--sky-light); color: var(--sky-light); }
+
+    /* =========================================================
+       Tarjeta principal del clima
+       ========================================================= */
+    .weather-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--card-shadow);
+      padding: 40px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.6s 0.2s ease both;
+      display: none;
+    }
+
+    .weather-card.visible { display: block; }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .location-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      line-height: 1.1;
+    }
+
+    .location-country {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+
+    .weather-icon-main {
+      font-size: clamp(3.5rem, 8vw, 5.5rem);
+      filter: drop-shadow(0 4px 20px rgba(251,191,36,0.4));
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    .temp-display {
+      margin: 28px 0 20px;
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .temp-main {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(4rem, 12vw, 7rem);
+      line-height: 1;
+      background: linear-gradient(135deg, #fff 60%, var(--sky-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .temp-unit { font-size: 2rem; color: var(--text-muted); padding-bottom: 16px; }
+
+    .weather-desc {
+      font-size: 1.2rem;
+      color: var(--sky-pale);
+      font-weight: 400;
+      text-transform: capitalize;
+      margin-bottom: 6px;
+    }
+
+    .feels-like { font-size: 0.9rem; color: var(--text-muted); }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--glass-border);
+      margin: 28px 0;
+    }
+
+    /* Grid de datos extra */
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+    }
+
+    .detail-item {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 18px 16px;
+      text-align: center;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .detail-item:hover {
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-2px);
+    }
+
+    .detail-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .detail-label { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+    .detail-value { font-size: 1.15rem; font-weight: 600; color: var(--cloud-white); }
+
+    /* =========================================================
+       Pronóstico por horas (scroll horizontal)
+       ========================================================= */
+    .forecast-section {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--card-shadow);
+      padding: 28px;
+      animation: fadeUp 0.6s 0.3s ease both;
+      display: none;
+    }
+
+    .forecast-section.visible { display: block; }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .hourly-scroll {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sky-blue) transparent;
+    }
+
+    .hourly-scroll::-webkit-scrollbar { height: 4px; }
+    .hourly-scroll::-webkit-scrollbar-thumb { background: var(--sky-blue); border-radius: 4px; }
+
+    .hour-item {
+      flex: 0 0 80px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 10px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .hour-item:hover { background: rgba(255,255,255,0.1); }
+
+    .hour-time  { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; }
+    .hour-icon  { font-size: 1.4rem; margin-bottom: 10px; }
+    .hour-temp  { font-size: 0.95rem; font-weight: 600; }
+
+    /* =========================================================
+       Error / Estado vacío
+       ========================================================= */
+    .state-message {
+      text-align: center;
+      padding: 60px 20px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .state-icon   { font-size: 3.5rem; margin-bottom: 16px; }
+    .state-title  { font-family: 'DM Serif Display', serif; font-size: 1.5rem; margin-bottom: 8px; }
+    .state-body   { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* =========================================================
+       Loading spinner
+       ========================================================= */
+    .loader {
+      display: none;
+      text-align: center;
+      padding: 50px;
+    }
+
+    .loader.active { display: block; }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--glass-border);
+      border-top-color: var(--sky-light);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* =========================================================
+       Barra UV
+       ========================================================= */
+    .uv-bar-wrap {
+      background: rgba(255,255,255,0.06);
+      border-radius: 99px;
+      height: 6px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .uv-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #22d3ee, #fbbf24, #ef4444);
+      transition: width 0.8s ease;
+    }
+
+    /* =========================================================
+       Footer
+       ========================================================= */
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--storm-grey);
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+
+    footer a { color: var(--sky-light); text-decoration: none; }
+
+    /* =========================================================
+       Animaciones de entrada
+       ========================================================= */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* =========================================================
+       Botón flotante "Acerca de"
+       ========================================================= */
+    .about-btn {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      z-index: 100;
+      background: var(--glass-bg);
+      border: 1.5px solid var(--glass-border);
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 10px 18px;
+      cursor: pointer;
+      backdrop-filter: blur(14px);
+      letter-spacing: 0.5px;
+      transition: border-color 0.25s, color 0.25s, box-shadow 0.25s;
+    }
+    .about-btn:hover {
+      border-color: var(--sky-light);
+      color: var(--sky-light);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.15);
+    }
+
+    /* =========================================================
+       Overlay del modal
+       ========================================================= */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(5, 12, 30, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* =========================================================
+       Ventana del modal
+       ========================================================= */
+    .modal {
+      background: linear-gradient(145deg, #0f2347, #0a1628);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(96,165,250,0.1);
+      width: 100%;
+      max-width: 480px;
+      overflow: hidden;
+      transform: translateY(24px) scale(0.97);
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+      opacity: 0;
+    }
+    .modal-overlay.open .modal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    /* Cabecera del modal */
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 28px 20px;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.03);
+    }
+    .modal-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.35rem;
+      color: var(--cloud-white);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal-title-icon {
+      font-size: 1.2rem;
+    }
+    .modal-close {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      line-height: 1;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.15); color: #f87171; border-color: #f87171; }
+
+    /* Cuerpo del modal */
+    .modal-body {
+      padding: 30px 28px 32px;
+    }
+
+    /* Avatar / iniciales */
+    .about-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--sky-blue), var(--sky-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      color: #fff;
+      margin: 0 auto 20px;
+      box-shadow: 0 4px 24px rgba(37,99,235,0.45);
+      letter-spacing: 1px;
+    }
+
+    /* Nombre */
+    .about-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.45rem;
+      text-align: center;
+      color: var(--cloud-white);
+      margin-bottom: 6px;
+    }
+
+    /* Divider decorativo */
+    .about-divider {
+      width: 48px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--sky-blue), var(--sky-light));
+      border-radius: 99px;
+      margin: 14px auto 20px;
+    }
+
+    /* Chips de info */
+    .about-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .about-chip {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      transition: background 0.2s;
+    }
+    .about-chip:hover { background: rgba(255,255,255,0.08); }
+    .chip-icon {
+      font-size: 1.25rem;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+    .chip-content {}
+    .chip-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 3px;
+    }
+    .chip-value {
+      font-size: 0.95rem;
+      color: var(--cloud-white);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    /* =========================================================
+       Responsive
+       ========================================================= */
+    @media (max-width: 540px) {
+      .weather-card { padding: 24px 18px; }
+      .search-bar   { flex-wrap: wrap; }
+      .btn          { flex: 1; }
+      .about-btn    { top: 14px; right: 14px; padding: 9px 14px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== Botón Acerca de ===== -->
+<button class="about-btn" onclick="openAbout()">ℹ️ Acerca de</button>
+
+<!-- ===== Modal Acerca de ===== -->
+<div class="modal-overlay" id="aboutOverlay" onclick="closeAboutOnOverlay(event)">
+  <div class="modal" id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span class="modal-title-icon">🎓</span>
+        <span id="aboutTitle">Acerca de</span>
+      </div>
+      <button class="modal-close" onclick="closeAbout()" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="about-avatar">JS</div>
+      <div class="about-name">Juan Guillermo Silva Benavides</div>
+      <div class="about-divider"></div>
+      <div class="about-chips">
+        <div class="about-chip">
+          <span class="chip-icon">🎓</span>
+          <div class="chip-content">
+            <div class="chip-label">Programa académico</div>
+            <div class="chip-value">Ingeniería de Software</div>
+          </div>
+        </div>
+        <div class="about-chip">
+          <span class="chip-icon">📅</span>
+          <div class="chip-content">
+            <div class="chip-label">Nivel</div>
+            <div class="chip-value">Estudiante de 1er semestre</div>
+          </div>
+        </div>
+        <div class="about-chip">
+          <span class="chip-icon">📚</span>
+          <div class="chip-content">
+            <div class="chip-label">Asignatura</div>
+            <div class="chip-value">Contexto de la Ingeniería de Software</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fondo animado -->
+<div class="sky-bg">
+  <div class="cloud cloud-1"></div>
+  <div class="cloud cloud-2"></div>
+  <div class="cloud cloud-3"></div>
+</div>
+
+<div class="wrapper">
+
+  <!-- ===== Header ===== -->
+  <header>
+    <div class="logo">Sky<span>Scope</span></div>
+    <p class="tagline">Clima en tiempo real · Powered by Open-Meteo</p>
+  </header>
+
+  <!-- ===== Búsqueda ===== -->
+  <div class="search-bar">
+    <input
+      id="cityInput"
+      class="search-input"
+      type="text"
+      placeholder="Buscar ciudad… ej: Bogotá, Madrid, Buenos Aires"
+      autocomplete="off"
+    />
+    <button class="btn btn-primary" onclick="searchCity()">Buscar</button>
+    <button class="btn btn-location" title="Usar mi ubicación" onclick="getLocation()">📍</button>
+  </div>
+
+  <!-- ===== Loader ===== -->
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <p style="color:var(--text-muted)">Consultando datos…</p>
+  </div>
+
+  <!-- ===== Estado inicial ===== -->
+  <div class="state-message" id="emptyState">
+    <div class="state-icon">🌤️</div>
+    <div class="state-title">¿Cómo está el cielo hoy?</div>
+    <div class="state-body">Ingresa una ciudad o permite el acceso a tu ubicación para comenzar.</div>
+  </div>
+
+  <!-- ===== Tarjeta principal ===== -->
+  <div class="weather-card" id="weatherCard">
+    <div class="card-top">
+      <div>
+        <div class="location-name" id="locName">—</div>
+        <div class="location-country" id="locCountry"></div>
+      </div>
+      <div class="weather-icon-main" id="mainIcon">—</div>
+    </div>
+
+    <div class="temp-display">
+      <span class="temp-main" id="tempMain">—</span>
+      <span class="temp-unit">°C</span>
+    </div>
+    <div class="weather-desc" id="weatherDesc">—</div>
+    <div class="feels-like" id="feelsLike"></div>
+
+    <div class="divider"></div>
+
+    <div class="details-grid">
+      <div class="detail-item">
+        <div class="detail-icon">💧</div>
+        <div class="detail-label">Humedad</div>
+        <div class="detail-value" id="humidity">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-icon">💨</div>
+        <div class="detail-label">Viento</div>
+        <div class="detail-value" id="wind">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-icon">🌡️</div>
+        <div class="detail-label">Presión</div>
+        <div class="detail-value" id="pressure">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-icon">👁️</div>
+        <div class="detail-label">Visibilidad</div>
+        <div class="detail-value" id="visibility">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-icon">🌧️</div>
+        <div class="detail-label">Precipitación</div>
+        <div class="detail-value" id="rain">—</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-icon">☀️</div>
+        <div class="detail-label">Índice UV</div>
+        <div class="detail-value" id="uvIndex">—</div>
+        <div class="uv-bar-wrap"><div class="uv-bar-fill" id="uvBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Pronóstico ===== -->
+  <div class="forecast-section" id="forecastSection">
+    <div class="section-title">📅 Pronóstico próximas horas</div>
+    <div class="hourly-scroll" id="hourlyScroll"></div>
+  </div>
+
+  <footer>
+    <p>Datos por <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> &amp; <a href="https://geocoding-api.open-meteo.com" target="_blank">Geocoding API</a> — Uso gratuito, sin clave API.</p>
+  </footer>
+
+</div>
+
+<script>
+/**
+ * @fileoverview SkyScope — Aplicación de clima en tiempo real
+ * @description Consulta datos meteorológicos usando las APIs gratuitas de
+ *   Open-Meteo (clima) y Open-Meteo Geocoding (búsqueda de ciudades).
+ *   No requiere clave API. Apta para despliegue en GitHub Pages.
+ * @author SkyScope Team
+ * @version 2.0.0
+ */
+
+// ─── Constantes de API ────────────────────────────────────────────────────────
+
+/** @const {string} URL base de la API de geocodificación de Open-Meteo */
+const GEO_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+
+/** @const {string} URL base de la API de clima de Open-Meteo */
+const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+
+// ─── Códigos WMO → Emoji + Descripción ───────────────────────────────────────
+
+/**
+ * @typedef  {Object} WeatherInfo
+ * @property {string} emoji       Emoji representativo del clima
+ * @property {string} description Descripción legible en español
+ */
+
+/**
+ * Mapa de códigos WMO (World Meteorological Organization) a información visual.
+ * @type {Object.<number, WeatherInfo>}
+ */
+const WMO_CODES = {
+  0:  { emoji: '☀️',  description: 'Cielo despejado' },
+  1:  { emoji: '🌤️', description: 'Mayormente despejado' },
+  2:  { emoji: '⛅',  description: 'Parcialmente nublado' },
+  3:  { emoji: '☁️',  description: 'Nublado' },
+  45: { emoji: '🌫️', description: 'Neblina' },
+  48: { emoji: '🌫️', description: 'Neblina con escarcha' },
+  51: { emoji: '🌦️', description: 'Llovizna ligera' },
+  53: { emoji: '🌦️', description: 'Llovizna moderada' },
+  55: { emoji: '🌧️', description: 'Llovizna intensa' },
+  61: { emoji: '🌧️', description: 'Lluvia ligera' },
+  63: { emoji: '🌧️', description: 'Lluvia moderada' },
+  65: { emoji: '🌧️', description: 'Lluvia intensa' },
+  71: { emoji: '🌨️', description: 'Nevada ligera' },
+  73: { emoji: '❄️',  description: 'Nevada moderada' },
+  75: { emoji: '❄️',  description: 'Nevada intensa' },
+  80: { emoji: '🌦️', description: 'Chubascos ligeros' },
+  81: { emoji: '🌧️', description: 'Chubascos moderados' },
+  82: { emoji: '⛈️', description: 'Chubascos violentos' },
+  95: { emoji: '⛈️', description: 'Tormenta eléctrica' },
+  96: { emoji: '⛈️', description: 'Tormenta con granizo' },
+  99: { emoji: '⛈️', description: 'Tormenta severa con granizo' },
+};
+
+// ─── Estado global ────────────────────────────────────────────────────────────
+
+/** @type {boolean} Previene solicitudes simultáneas */
+let isLoading = false;
+
+// ─── Helpers de UI ────────────────────────────────────────────────────────────
+
+/**
+ * Muestra u oculta el indicador de carga.
+ * @param {boolean} show - `true` para mostrar, `false` para ocultar.
+ */
+function toggleLoader(show) {
+  document.getElementById('loader').classList.toggle('active', show);
+}
+
+/**
+ * Alterna la visibilidad de las tarjetas de resultado.
+ * @param {boolean} show - `true` para mostrar las tarjetas de clima.
+ */
+function toggleCards(show) {
+  document.getElementById('emptyState').style.display    = show ? 'none' : 'block';
+  document.getElementById('weatherCard').classList.toggle('visible', show);
+  document.getElementById('forecastSection').classList.toggle('visible', show);
+}
+
+/**
+ * Muestra un mensaje de error en el área de estado.
+ * @param {string} title - Título del error.
+ * @param {string} body  - Descripción del error.
+ */
+function showError(title, body) {
+  const el = document.getElementById('emptyState');
+  el.innerHTML = `
+    <div class="state-icon">⚠️</div>
+    <div class="state-title">${title}</div>
+    <div class="state-body">${body}</div>`;
+  el.style.display = 'block';
+}
+
+// ─── Lógica de búsqueda ───────────────────────────────────────────────────────
+
+/**
+ * Inicia la búsqueda de clima por nombre de ciudad.
+ * Lee el valor del input, valida que no esté vacío y llama a {@link geocodeCity}.
+ * @returns {void}
+ */
+function searchCity() {
+  const query = document.getElementById('cityInput').value.trim();
+  if (!query) {
+    document.getElementById('cityInput').focus();
+    return;
+  }
+  geocodeCity(query);
+}
+
+/**
+ * Obtiene la geolocalización del usuario mediante la API del navegador
+ * y llama a {@link fetchWeather} con las coordenadas obtenidas.
+ * @returns {void}
+ */
+function getLocation() {
+  if (!navigator.geolocation) {
+    showError('Sin soporte', 'Tu navegador no admite geolocalización.');
+    return;
+  }
+  setLoadingState(true);
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      fetchWeather(lat, lon, 'Mi Ubicación', '');
+    },
+    () => {
+      setLoadingState(false);
+      showError('Permiso denegado', 'Activa la ubicación en tu navegador e intenta de nuevo.');
+    }
+  );
+}
+
+/**
+ * Traduce el nombre de una ciudad a coordenadas usando la API de Geocoding.
+ * @async
+ * @param {string} cityName - Nombre de la ciudad a buscar.
+ * @returns {Promise<void>}
+ */
+async function geocodeCity(cityName) {
+  setLoadingState(true);
+  try {
+    const params = new URLSearchParams({ name: cityName, count: 1, language: 'es', format: 'json' });
+    const res  = await fetch(`${GEO_URL}?${params}`);
+    const data = await res.json();
+
+    if (!data.results || data.results.length === 0) {
+      setLoadingState(false);
+      showError('Ciudad no encontrada', `No se encontraron resultados para "${cityName}". Verifica el nombre e intenta de nuevo.`);
+      return;
+    }
+
+    const { latitude, longitude, name, country } = data.results[0];
+    await fetchWeather(latitude, longitude, name, country);
+
+  } catch (err) {
+    setLoadingState(false);
+    showError('Error de conexión', 'No se pudo conectar con el servidor de geocodificación. Verifica tu internet.');
+    console.error('[SkyScope] Geocoding error:', err);
+  }
+}
+
+// ─── Carga de datos meteorológicos ───────────────────────────────────────────
+
+/**
+ * Solicita los datos meteorológicos actuales y el pronóstico por horas.
+ * Actualiza la interfaz con la información recibida.
+ * @async
+ * @param {number} lat     - Latitud de la ubicación.
+ * @param {number} lon     - Longitud de la ubicación.
+ * @param {string} name    - Nombre de la ciudad para mostrar.
+ * @param {string} country - País de la ciudad.
+ * @returns {Promise<void>}
+ */
+async function fetchWeather(lat, lon, name, country) {
+  try {
+    const params = new URLSearchParams({
+      latitude:              lat,
+      longitude:             lon,
+      current:               [
+        'temperature_2m',
+        'relative_humidity_2m',
+        'apparent_temperature',
+        'weather_code',
+        'wind_speed_10m',
+        'surface_pressure',
+        'precipitation',
+        'visibility',
+        'uv_index',
+      ].join(','),
+      hourly:                'temperature_2m,weather_code',
+      hourly_units:          'celsius',
+      timezone:              'auto',
+      forecast_days:         1,
+      wind_speed_unit:       'kmh',
+    });
+
+    const res  = await fetch(`${WEATHER_URL}?${params}`);
+    const data = await res.json();
+
+    renderWeather(data, name, country);
+    renderHourly(data);
+
+  } catch (err) {
+    showError('Error al obtener el clima', 'No se pudieron cargar los datos meteorológicos. Intenta más tarde.');
+    console.error('[SkyScope] Weather fetch error:', err);
+  } finally {
+    setLoadingState(false);
+    toggleCards(true);
+  }
+}
+
+// ─── Renderizado de datos ─────────────────────────────────────────────────────
+
+/**
+ * Actualiza la tarjeta principal con los datos meteorológicos actuales.
+ * @param {Object} data    - Respuesta JSON de Open-Meteo.
+ * @param {string} name    - Nombre de la ciudad.
+ * @param {string} country - País.
+ */
+function renderWeather(data, name, country) {
+  const cur   = data.current;
+  const units = data.current_units;
+  const code  = cur.weather_code;
+  const wInfo = WMO_CODES[code] || { emoji: '🌡️', description: 'Desconocido' };
+
+  document.getElementById('locName').textContent    = name;
+  document.getElementById('locCountry').textContent = country;
+  document.getElementById('mainIcon').textContent   = wInfo.emoji;
+  document.getElementById('tempMain').textContent   = Math.round(cur.temperature_2m);
+  document.getElementById('weatherDesc').textContent = wInfo.description;
+  document.getElementById('feelsLike').textContent  =
+    `Sensación térmica: ${Math.round(cur.apparent_temperature)}°C`;
+
+  document.getElementById('humidity').textContent   = `${cur.relative_humidity_2m}%`;
+  document.getElementById('wind').textContent       = `${Math.round(cur.wind_speed_10m)} km/h`;
+  document.getElementById('pressure').textContent   = `${Math.round(cur.surface_pressure)} hPa`;
+  document.getElementById('visibility').textContent =
+    cur.visibility >= 1000
+      ? `${(cur.visibility / 1000).toFixed(1)} km`
+      : `${cur.visibility} m`;
+  document.getElementById('rain').textContent       = `${cur.precipitation} mm`;
+
+  const uv = cur.uv_index ?? 0;
+  document.getElementById('uvIndex').textContent = uv.toFixed(1);
+  document.getElementById('uvBar').style.width   = `${Math.min((uv / 11) * 100, 100)}%`;
+}
+
+/**
+ * Genera las tarjetas de pronóstico horario.
+ * Muestra las próximas 12 horas en un scroll horizontal.
+ * @param {Object} data - Respuesta JSON de Open-Meteo que incluye `hourly`.
+ */
+function renderHourly(data) {
+  const scroll = document.getElementById('hourlyScroll');
+  scroll.innerHTML = '';
+
+  const times  = data.hourly.time.slice(0, 12);
+  const temps  = data.hourly.temperature_2m.slice(0, 12);
+  const codes  = data.hourly.weather_code.slice(0, 12);
+
+  times.forEach((time, i) => {
+    const hour  = new Date(time).getHours();
+    const label = `${String(hour).padStart(2, '0')}:00`;
+    const wInfo = WMO_CODES[codes[i]] || { emoji: '🌡️' };
+
+    const card = document.createElement('div');
+    card.className = 'hour-item';
+    card.innerHTML = `
+      <div class="hour-time">${label}</div>
+      <div class="hour-icon">${wInfo.emoji}</div>
+      <div class="hour-temp">${Math.round(temps[i])}°</div>`;
+    scroll.appendChild(card);
+  });
+}
+
+// ─── Estado de carga ──────────────────────────────────────────────────────────
+
+/**
+ * Activa o desactiva el estado de carga de la UI.
+ * @param {boolean} active - `true` para activar el loader, `false` para desactivarlo.
+ */
+function setLoadingState(active) {
+  isLoading = active;
+  toggleLoader(active);
+  if (active) {
+    document.getElementById('emptyState').style.display = 'none';
+    toggleCards(false);
+  }
+}
+
+// ─── Event listeners ──────────────────────────────────────────────────────────
+
+/**
+ * Permite buscar al presionar Enter en el campo de texto.
+ * @listens KeyboardEvent#keydown
+ */
+document.getElementById('cityInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchCity();
+});
+
+// ─── Inicialización ───────────────────────────────────────────────────────────
+
+/**
+ * Carga el clima de Bogotá como ciudad por defecto al iniciar la aplicación.
+ * @returns {void}
+ */
+(function init() {
+  geocodeCity('Bogotá');
+})();
+
+// ─── Modal "Acerca de" ────────────────────────────────────────────────────────
+
+/**
+ * Abre la ventana modal "Acerca de" con animación.
+ * Agrega la clase `open` al overlay y bloquea el scroll del body.
+ * @returns {void}
+ */
+function openAbout() {
+  document.getElementById('aboutOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Cierra la ventana modal "Acerca de" con animación.
+ * Elimina la clase `open` del overlay y restaura el scroll del body.
+ * @returns {void}
+ */
+function closeAbout() {
+  document.getElementById('aboutOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/**
+ * Cierra el modal si el usuario hace clic directamente sobre el overlay
+ * (fuera de la ventana del modal).
+ * @param {MouseEvent} event - El evento de clic del overlay.
+ * @returns {void}
+ */
+function closeAboutOnOverlay(event) {
+  if (event.target === document.getElementById('aboutOverlay')) {
+    closeAbout();
+  }
+}
+
+/**
+ * Cierra el modal "Acerca de" al presionar la tecla Escape.
+ * @listens KeyboardEvent#keydown
+ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAbout();
+});
+</script>
+</body>
+</html>
